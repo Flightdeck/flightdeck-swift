@@ -9,7 +9,7 @@ import os
 import SwiftUI
 
 open class Flightdeck {
-    static let shared = Flightdeck()
+    public static let shared = Flightdeck()
     private let sdkVersion = "1.0.0"
     private let eventAPIURL = "https://api.flightdeck.com/v0/events"
     private let automaticEventsPrefix = "(FD) "
