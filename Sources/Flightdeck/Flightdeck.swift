@@ -11,7 +11,7 @@ import SwiftUI
 open class Flightdeck {
     public static let shared = Flightdeck()
     private let sdkVersion = "1.0.0"
-    private let eventAPIURL = "https://api.flightdeck.com/v0/events"
+    private let eventAPIURL = "https://api.flightdeck.cc/v0/events"
     private let automaticEventsPrefix = "(FD) "
     private let projectId: String
     private let projectToken: String
