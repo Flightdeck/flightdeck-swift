@@ -98,7 +98,7 @@ open class Flightdeck {
      - parameter addEventMetadata:      Enable default metadata to be added to each event
      
      */
-    public class func initialize(
+    class public func initialize(
         projectId: String,
         projectToken: String,
         trackAutomaticEvents: Bool = true,
