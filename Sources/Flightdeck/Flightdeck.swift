@@ -8,7 +8,7 @@ import Foundation
 import os
 import SwiftUI
 
-final class Flightdeck {
+open class Flightdeck {
     static let shared = Flightdeck()
     private let sdkVersion = "1.0.0"
     private let eventAPIURL = "https://api.flightdeck.com/v0/events"
