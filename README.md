@@ -1,4 +1,4 @@
-# ![flightdeck-logo-flat-brand](https://user-images.githubusercontent.com/3425455/212749718-85e425da-1e17-4c80-8dc0-c7db3b04490c.svg) Flightdeck
+# ![flightdeck-logo-flat-brand](https://user-images.githubusercontent.com/3425455/212749718-85e425da-1e17-4c80-8dc0-c7db3b04490c.svg) Flightdeck Swift
 
 ## Installation: Swift Package Manager
 Use Swift Package Manager to add Flightdeck to your project in Xcode:
