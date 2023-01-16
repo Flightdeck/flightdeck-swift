@@ -8,20 +8,22 @@ import Foundation
 import os
 import SwiftUI
 
+
 open class Flightdeck {
     public static let shared = Flightdeck()
-    private let sdkVersion = "1.0.0"
+    private let clientType = "iOSlib"
+    private let clientVersion = "1.0.0"
+    private let clientConfig: String
     private let eventAPIURL = "https://api.flightdeck.cc/v0/events"
     private let automaticEventsPrefix = "(FD) "
     private let projectId: String
     private let projectToken: String
+    private let addEventMetadata: Bool
     private let trackAutomaticEvents: Bool
     private let trackUniqueEvents: Bool
-    private let addEventMetadata: Bool
     
     private let logger = Logger()
     private let notificationCenter = NotificationCenter.default
-    private let userDefaults = UserDefaults.standard
     
     private var superProperties = [String: Any]()
     private var eventsTrackedThisSession = [String]()
@@ -37,14 +39,14 @@ open class Flightdeck {
     struct Config {
         var projectId: String
         var projectToken: String
+        var addEventMetadata: Bool
         var trackAutomaticEvents: Bool
         var trackUniqueEvents: Bool
-        var addEventMetadata: Bool
     }
     private static var config:Config?
     
     /// Used to store events for daily and monthly unique calculation
-    struct EventsTrackedBefore {
+    struct EventsTrackedBefore: Codable {
         var date: Int               /// Int that represent current time period (e.g. day of year, month of year)
         var events = [String]()     /// Array with event names that have been tracked in current time period
     }
@@ -58,9 +60,18 @@ open class Flightdeck {
         }
         self.projectId = config.projectId
         self.projectToken = config.projectToken
+        self.addEventMetadata = config.addEventMetadata
         self.trackAutomaticEvents = config.trackAutomaticEvents
-        self.trackUniqueEvents = config.trackAutomaticEvents
-        self.addEventMetadata = config.trackAutomaticEvents
+        self.trackUniqueEvents = config.trackUniqueEvents
+        self.clientConfig = "\(self.addEventMetadata ? 1 : 0)\(self.trackAutomaticEvents ? 1 : 0)\(self.trackUniqueEvents ? 1 : 0)"
+        /**
+            sdkConfig
+         
+            Position 1: 1 = iOS SDK
+            Position 2: addEventMetadata true/false (1 or 0)
+            Position 3: trackAutomaticEvents true/false  (1 or 0)
+            Position 4: trackUniqueEvents true/false  (1 or 0)
+         **/
         
         /// Observe app state changes
         notificationCenter.addObserver(self, selector: #selector(appMovedToBackground), name: UIApplication.willResignActiveNotification, object: nil)
@@ -69,14 +80,18 @@ open class Flightdeck {
         
         /// Retrieve events that have been tracked before from UserDefaults
         if self.trackUniqueEvents {
-            if let eventsCollection = userDefaults.object(forKey: "eventsTrackedBefore") as? [String: EventsTrackedBefore] {
-                if eventsCollection["day"]?.date == Calendar.current.component(.day, from: Date()) {
-                    /// Still the same day: Reuse entire past events collection from UserDefaults
-                    self.eventsTrackedBefore = eventsCollection
-                } else if eventsCollection["month"]?.date == Calendar.current.component(.month, from: Date()){
-                    /// New day, same month: Reuse monthly events from UserDefaults, but reset daily unique
-                    self.eventsTrackedBefore["month"] = eventsCollection["month"]
-                } /// New day and month, leave the empty default values unchanged
+            let calendarComponent = ["day": Calendar.Component.day, "month": Calendar.Component.month]
+            self.eventsTrackedBefore.forEach { period, values in
+                if
+                    let eventsCollectionData = UserDefaults.standard.object(forKey: "eventsTrackedBeforeThis\(period.capitalized)") as? Data,
+                    let eventsCollection = try? JSONDecoder().decode(EventsTrackedBefore.self, from: eventsCollectionData),
+                    let component = calendarComponent[period]
+                {
+                    /// Use stored event if they're from the same period.
+                    if eventsCollection.date == Calendar.current.component(component, from: Date()) {
+                        self.eventsTrackedBefore[period] = eventsCollection
+                    }
+                }
             }
         }
         
@@ -93,24 +108,24 @@ open class Flightdeck {
      
      - parameter projectId:             Project ID
      - parameter projectToken:          Project write API token
+     - parameter addEventMetadata:      Enable default metadata to be added to each event
      - parameter trackAutomaticEvents:  Enable tracking automatic events
      - parameter trackUniqueEvents:     Enable tracking daily and monthly unique events (session uniqueness is always tracked)
-     - parameter addEventMetadata:      Enable default metadata to be added to each event
      
      */
     class public func initialize(
         projectId: String,
         projectToken: String,
+        addEventMetadata: Bool = true,
         trackAutomaticEvents: Bool = true,
-        trackUniqueEvents: Bool = true,
-        addEventMetadata: Bool = true
+        trackUniqueEvents: Bool = false
     ){
         Flightdeck.config = Config(
             projectId: projectId,
             projectToken: projectToken,
+            addEventMetadata: addEventMetadata,
             trackAutomaticEvents: trackAutomaticEvents,
-            trackUniqueEvents: trackUniqueEvents,
-            addEventMetadata: addEventMetadata
+            trackUniqueEvents: trackUniqueEvents
         )
         
         // Call shared instance to start init()
@@ -172,7 +187,13 @@ open class Flightdeck {
         let currentDateTime = self.getCurrentDateTime()
         
         /// Initialize a new Event object with event string and current UTC datetime
-        var eventData = Event(event: event, datetimeUTC: currentDateTime.datetimeUTC)
+        var eventData = Event(
+            clientType: self.clientType,
+            clientVersion: self.clientVersion,
+            clientConfig: self.clientConfig,
+            event: event,
+            datetimeUTC: currentDateTime.datetimeUTC
+        )
         
         /// Set custom properties, merged with super properties, if any
         if var props = properties {
@@ -182,8 +203,6 @@ open class Flightdeck {
             eventData.properties = self.stringifyProperties(properties: superProperties)
         }
         
-        /// Set SDK version
-        eventData.sdkVersion = self.sdkVersion
         
         if (self.addEventMetadata) {
             
@@ -204,11 +223,6 @@ open class Flightdeck {
             eventData.osVersion = String(describing: ProcessInfo.processInfo.operatingSystemVersion.majorVersion) /// Major version only for privacy reasons
             eventData.deviceModel = UIDevice.current.model
             eventData.deviceManufacturer = "Apple"
-            
-            /// Set app install date
-            if let appInstalldate = self.getAppInstallDate() {
-                eventData.appInstallDate = appInstalldate
-            }
         }
         
         /// Set previous event name and datetime if any
@@ -235,7 +249,7 @@ open class Flightdeck {
         
         /// Convert Event object to JSON
         guard let eventDataJSON = try? JSONEncoder().encode(eventData) else {
-            self.logger.error("Flightdeck: Failed to encode even data to JSON")
+            self.logger.error("Flightdeck: Failed to encode event data to JSON")
             return
         }
         
@@ -256,7 +270,6 @@ open class Flightdeck {
                 return
             }
         }.resume()
-        
     }
     
     
@@ -315,22 +328,6 @@ open class Flightdeck {
     
     
     /**
-     Check when the app was installed and return this value as a string
-     
-     - parameters: none
-     - returns: Date string or nil if install date retrieval fails
-    */
-    private func getAppInstallDate() -> String? {
-        guard
-            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).last,
-            let attributes = try? FileManager.default.attributesOfItem(atPath: documentsURL.path),
-            let creationDate = attributes[.creationDate] as? String
-        else { return nil }
-        return creationDate
-    }
-    
-    
-    /**
      Check if a specified event has been tracked before during the current session
      
      - parameter event: Event name
@@ -346,21 +343,34 @@ open class Flightdeck {
     }
     
     /**
-     Check if a specified event has been tracked before during the current month
+     Check if a specified event has been tracked before during the current day or month
      
      - parameter event:     Event name
      - parameter period:    Period string ("day", "month")
-     - returns:             true if event is first of this month, false if event has been tracked before
+     - returns:             true if event is first of this day or month, false if event has been tracked before
     */
     private func isFirstOfPeriod(event: String, period: String) -> Bool {
-        guard let eventsCollection = self.eventsTrackedBefore["period"] else {
+        let calendarComponent = ["day": Calendar.Component.day, "month": Calendar.Component.month]
+        
+        guard
+            let eventsCollection = self.eventsTrackedBefore[period],
+            let component = calendarComponent[period]
+        else {
             return false
         }
         
-        if eventsCollection.events.contains(event) {
-            return false
+        /// Check if eventsCollection in memory is from the current time period before checking for the event
+        if eventsCollection.date == Calendar.current.component(component, from: Date()) {
+            if eventsCollection.events.contains(event) {
+                return false
+            } else {
+                self.eventsTrackedBefore[period]?.events.append(event)
+                return true
+            }
+        
+        /// If eventsCollection in memory is old, empty the collection and set date to current time period
         } else {
-            self.eventsTrackedBefore["period"]?.events.append(event)
+            self.eventsTrackedBefore[period] = EventsTrackedBefore(date: Calendar.current.component(component, from: Date()))
             return true
         }
     }
@@ -382,22 +392,25 @@ open class Flightdeck {
 
     @objc private func appMovedToForeground(){
         if let movedToBackgroundTime = self.movedToBackgroundTime {
+
             if Date().timeIntervalSince(movedToBackgroundTime) > 60  {
-                self.trackAutomaticEvent("Session End")
                 self.eventsTrackedThisSession.removeAll()
                 self.previousEvent = nil
                 self.previousEventDateTimeUTC = nil
+                self.trackAutomaticEvent("Session Start")
             }
-            self.trackAutomaticEvent("Session Start")
         }
     }
     
     @objc private func appTerminated(){
-        self.trackAutomaticEvent("Session End")
-        
         if self.trackUniqueEvents {
-            userDefaults.set(self.eventsTrackedBefore, forKey: "eventsTrackedBefore")
+            self.eventsTrackedBefore.forEach{ period, eventsCollection in
+                
+                if let encoded = try? JSONEncoder().encode(eventsCollection) {
+                    UserDefaults.standard.set(encoded, forKey: "eventsTrackedBeforeThis\(period.capitalized)")
+                }
+            }
         }
     }
+    
 }
-
