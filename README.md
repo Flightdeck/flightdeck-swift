@@ -82,7 +82,7 @@ Flightdeck.shared.trackEvent("New project created", properties: [
 
 Set properties that are automatically sent with each event.
 
-```
+```swift
 Flightdeck.shared.setSuperProperties([
   "Subscription type": "premium",
   "Active projects": 12,
