@@ -96,7 +96,7 @@ open class Flightdeck {
         }
         
         /// Track session start
-        self.trackAutomaticEvent("Session Start")
+        self.trackAutomaticEvent("Session start")
     }
     
     // MARK: - initialize
@@ -397,7 +397,7 @@ open class Flightdeck {
                 self.eventsTrackedThisSession.removeAll()
                 self.previousEvent = nil
                 self.previousEventDateTimeUTC = nil
-                self.trackAutomaticEvent("Session Start")
+                self.trackAutomaticEvent("Session start")
             }
         }
     }
