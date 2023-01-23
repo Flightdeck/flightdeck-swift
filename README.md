@@ -51,13 +51,13 @@ func application(_ application: UIApplication,
 
 #### Parameters
 
-| Parameter             | Required      | Type                    | Description                                                                 |
-| --------------------- | ------------- | ----------------------- | --------------------------------------------------------------------------- |
-| projectId             | Required      | `String`                | Project ID¹                                                                 |
-| ProjectToken          | Required      | `String`                | Project write API token¹                                                    |
-| addEventMetadata      | Optional      | `Bool` default *true*   | Enable device, timezone, and app version metadata to be added to each event |
-| trackAutomaticEvents  | Optional      | `Bool` default *true*   | Enable tracking automatic events (e.g. Session start)                       |
-| trackUniqueEvents     | Optional      | `Bool` default *false*  | Enable tracking daily and monthly unique events²                            |
+| Parameter              | Required      | Type                         | Description                                                                 |
+| ---------------------- | ------------- | ---------------------------- | --------------------------------------------------------------------------- |
+| projectId              | Required      | `String`                     | Project ID¹                                                                 |
+| ProjectToken           | Required      | `String`                     | Project write API token¹                                                    |
+| addEventMetadata       | Optional      | `Bool` default **true**      | Enable device, timezone, and app version metadata to be added to each event |
+| trackAutomaticEvents   | Optional      | `Bool` default **true**      | Enable tracking automatic events (e.g. Session start)                       |
+| trackUniqueEvents      | Optional      | `Bool` default **false**     | Enable tracking daily and monthly unique events²                            |
 
 ¹ Project ID and project token are generated on project creation and can be found in the project settings by team admins and owners.
 
