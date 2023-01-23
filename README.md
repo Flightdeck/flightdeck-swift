@@ -1,5 +1,5 @@
 ![swiftpackage](https://user-images.githubusercontent.com/3425455/214008601-483a2a45-3226-4324-8f96-373b64dccf6e.svg)
- ![apache2short](https://user-images.githubusercontent.com/3425455/214007387-ced3e898-63e7-4c66-bc08-e113be00e3c3.svg) [![Percentage of issues still open](http://isitmaintained.com/badge/open/Flightdeck/flightdeck-swift.svg)](http://isitmaintained.com/project/Flightdeck/flightdeck-swift "Percentage of issues still open") [![Better Uptime Badge](https://betteruptime.com/status-badges/v1/monitor/lmrx.svg)](https://betteruptime.com/?utm_source=status_badge)
+ ![apache2short](https://user-images.githubusercontent.com/3425455/214007387-ced3e898-63e7-4c66-bc08-e113be00e3c3.svg) [![Percentage of issues still open](http://isitmaintained.com/badge/open/Flightdeck/flightdeck-swift.svg)](http://isitmaintained.com/project/Flightdeck/flightdeck-swift "Percentage of issues still open") [![Better Uptime Badge](https://betteruptime.com/status-badges/v1/monitor/lmrx.svg)](https://status.flightdeck.cc/)
 
 
 
