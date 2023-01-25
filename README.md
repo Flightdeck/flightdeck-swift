@@ -61,7 +61,7 @@ func application(_ application: UIApplication,
 
 ¹ Project ID and project token are generated on project creation and can be found in the project settings by team admins and owners.
 
-² In order to track whether an event has been sent before during the current week or month, a list of previously sent events is store on the device. The information stored includes event names only. No idenfitying information or metadata is stored. However, legislation in some countries forbids storing information on a user's device without explicit permission, even when this information does not contain personal data. If you want to run Flightdeck without making any use of permanent storage, keep this option disabled. Note that session uniqueness is always tracked, because this doesn't require storing any inromation.
+² To track whether an event has been sent before during the current day or month, a list of previously sent events is stored on the device. The information stored includes event names only. No idenfitying information or metadata is stored. However, legislation in some countries forbids storing information on a user's device without explicit permission, even when this information does not contain personal data. If you want to run Flightdeck without making any use of permanent storage, keep this option disabled. Note that session uniqueness is always tracked, because it doesn't require storing any inromation.
 
 ## Track event
 
