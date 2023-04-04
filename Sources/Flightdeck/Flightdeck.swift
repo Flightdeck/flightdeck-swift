@@ -36,11 +36,8 @@ public class Flightdeck {
 
     /// Config to store configuration before init
     struct Config {
-        var projectId: String
-        var projectToken: String
-        var addEventMetadata: Bool
-        var trackAutomaticEvents: Bool
-        var trackUniqueEvents: Bool
+        var projectId, projectToken: String
+        var addEventMetadata, trackAutomaticEvents, trackUniqueEvents: Bool
     }
     private static var config:Config?
 
