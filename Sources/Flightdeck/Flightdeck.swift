@@ -282,7 +282,6 @@ public class Flightdeck {
         eventData.firstOfSession = self.trackFirstOfSession(event: eventData.event)
 
         /// Set daily and monthly uniqueness of event
-        // FIXME
         if self.trackUniqueEvents {
             let isFirstOf = trackFirstOfPeriod(event: eventData.event)
             eventData.firstOfHour = isFirstOf[.hour]
@@ -458,18 +457,19 @@ public class Flightdeck {
     */
     private static func getCurrentDatePeriod(period: EventPeriod) -> Int {
         let calender = Calendar.current
+        let date = Date()
 
         switch period {
         case .hour:
-            return calender.ordinality(of: .hour, in: .year, for: Date()) ?? Calendar.current.component(.hour, from: Date())
+            return calender.ordinality(of: .hour, in: .year, for: date) ?? Calendar.current.component(.hour, from: date)
         case .day:
-            return calender.ordinality(of: .day, in: .year, for: Date()) ?? Calendar.current.component(.day, from: Date())
+            return calender.ordinality(of: .day, in: .year, for: date) ?? Calendar.current.component(.day, from: date)
         case .week:
-            return calender.component(.weekOfYear, from: Date())
+            return calender.component(.weekOfYear, from: date)
         case .month:
-            return calender.component(.month, from: Date())
+            return calender.component(.month, from: date)
         case .quarter:
-            return calender.component(.quarter, from: Date())
+            return calender.component(.quarter, from: date)
         }
     }
 
