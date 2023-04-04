@@ -11,6 +11,8 @@ import SwiftUI
 
 public class Flightdeck {
     public static let shared = Flightdeck()
+    private static let logger = Logger()
+    
     private let clientType = "iOSlib"
     private let clientVersion = "1.0.0"
     private let clientConfig: String
@@ -22,10 +24,9 @@ public class Flightdeck {
     private let trackAutomaticEvents: Bool
     private let trackUniqueEvents: Bool
 
-    private let logger = Logger()
     private let notificationCenter = NotificationCenter.default
 
-    private let staticMetaData: StaticMetaData
+    private var staticMetaData: StaticMetaData?
     private var superProperties = [String: Any]()
     private var eventsTrackedThisSession = [String]()
     private var eventsTrackedBefore = [EventPeriod: EventSet]()
@@ -121,16 +122,16 @@ public class Flightdeck {
             Position 3: trackAutomaticEvents true/false  (1 or 0)
             Position 4: trackUniqueEvents true/false  (1 or 0)
          **/
-
-        /// Observe app state changes
-        notificationCenter.addObserver(self, selector: #selector(appMovedToBackground), name: UIApplication.willResignActiveNotification, object: nil)
-        notificationCenter.addObserver(self, selector: #selector(appMovedToForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
-        notificationCenter.addObserver(self, selector: #selector(appTerminated), name: UIApplication.willTerminateNotification, object: nil)
         
         /// Set static metadata if tracked
         if self.addEventMetadata {
             self.staticMetaData = StaticMetaData()
         }
+
+        /// Observe app state changes
+        notificationCenter.addObserver(self, selector: #selector(appMovedToBackground), name: UIApplication.willResignActiveNotification, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(appMovedToForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(appTerminated), name: UIApplication.willTerminateNotification, object: nil)
         
         /// Retrieve events that have been tracked before from UserDefaults
         if self.trackUniqueEvents {
@@ -208,7 +209,7 @@ public class Flightdeck {
     /// Public trackEvent function
     public func trackEvent(_ event: String, properties: [String: Any]? = nil){
         if event.hasPrefix(self.automaticEventsPrefix) {
-            logger.error("Flightdeck: Event name has forbidden prefix \(self.automaticEventsPrefix)")
+            Self.logger.error("Flightdeck: Event name has forbidden prefix \(self.automaticEventsPrefix)")
         } else {
             self.trackEventCore(event, properties: properties)
         }
@@ -251,13 +252,15 @@ public class Flightdeck {
             eventData.timezone = currentDateTime.timezone
 
             /// Set static metadata
-            eventData.language = self.staticMetaData.language
-            eventData.appVersion = self.staticMetaData.appVersion
-            eventData.appInstallDate = self.staticMetaData.appInstallDate
-            eventData.osName = self.staticMetaData.osName
-            eventData.osVersion = self.staticMetaData.osVersion
-            eventData.deviceModel = self.staticMetaData.deviceModel
-            eventData.deviceManufacturer = self.staticMetaData.deviceManufacturer
+            if let staticMetaData = self.staticMetaData {
+                eventData.language = staticMetaData.language
+                eventData.appVersion = staticMetaData.appVersion
+                eventData.appInstallDate = staticMetaData.appInstallDate
+                eventData.osName = staticMetaData.osName
+                eventData.osVersion = staticMetaData.osVersion
+                eventData.deviceModel = staticMetaData.deviceModel
+                eventData.deviceManufacturer = staticMetaData.deviceManufacturer
+            }
 
         }
 
@@ -289,13 +292,13 @@ public class Flightdeck {
 
         /// Convert Event object to JSON
         guard let eventDataJSON = try? JSONEncoder().encode(eventData) else {
-            self.logger.error("Flightdeck: Failed to encode event data to JSON")
+            Self.logger.error("Flightdeck: Failed to encode event data to JSON")
             return
         }
 
         /// Post event data
         guard let url = URL(string: "\(self.eventAPIURL)?name=\(self.projectId)") else {
-            self.logger.error("Flightdeck: Failed to use Flightdeck API URL")
+            Self.logger.error("Flightdeck: Failed to use Flightdeck API URL")
             return
         }
         var request = URLRequest(url: url)
@@ -306,7 +309,7 @@ public class Flightdeck {
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             if (error != nil) {
-                self.logger.error("Flightdeck: Failed to send event to server. Error: \(error?.localizedDescription ?? "No error data")")
+                Self.logger.error("Flightdeck: Failed to send event to server. Error: \(error?.localizedDescription ?? "No error data")")
                 return
             }
         }.resume()
@@ -355,11 +358,11 @@ public class Flightdeck {
     */
     private func stringifyProperties(properties: [String: Any]) -> String {
         guard let jsonProperties = try? JSONSerialization.data(withJSONObject: properties) else {
-            self.logger.error("Flightdeck: Failed to convert event properties to JSON. Check your properties dictionary.")
+            Self.logger.error("Flightdeck: Failed to convert event properties to JSON. Check your properties dictionary.")
             return ""
         }
         guard let jsonPropertiesString = String(data: jsonProperties, encoding: .utf8) else {
-            self.logger.error("Flightdeck: Failed to convert event properties to JSON string. Check your properties dictionary.")
+            Self.logger.error("Flightdeck: Failed to convert event properties to JSON string. Check your properties dictionary.")
             return ""
         }
         
