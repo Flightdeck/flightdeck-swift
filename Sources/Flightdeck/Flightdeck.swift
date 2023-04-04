@@ -25,6 +25,7 @@ public class Flightdeck {
     private let logger = Logger()
     private let notificationCenter = NotificationCenter.default
 
+    private let staticMetaData: StaticMetaData
     private var superProperties = [String: Any]()
     private var eventsTrackedThisSession = [String]()
     private var eventsTrackedBefore = [EventPeriod: EventSet]()
@@ -42,20 +43,18 @@ public class Flightdeck {
     }
     private static var config:Config?
 
+    /// Structure to store metadata that's only updated once per session
+    struct StaticMetaData {
+        let language: String? = Bundle.main.preferredLocalizations.first
+        let appVersion: String? = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        let appInstallDate: String? = Flightdeck.getAppInstallDate()
+        let osName: String = UIDevice.current.systemName
+        let deviceModel: String? = Flightdeck.getDeviceModel() /// System representation
+        let deviceManufacturer: String = "Apple"
+        let osVersion: String? = UIDevice.current.systemVersion.split(separator: ".").first.map { String($0) } /// Major version only for privacy reasons
+    }
+    
     /// Structure to store events for unique user calculation
-//    struct EventsTrackedBefore: Codable {
-//        var hour, day, week, month, quarter: EventData
-//    }
-
-//    EventsTrackedBefore(
-//        hour: EventData(date: getCurrentDatePeriod(period: "hour")),
-//        day: EventData(date: getCurrentDatePeriod(period: "day")),
-//        week: EventData(date: getCurrentDatePeriod(period: "week")),
-//        month: EventData(date: getCurrentDatePeriod(period: "month")),
-//        quarter: EventData(date: getCurrentDatePeriod(period: "quarter")),
-//
-//    )
-
     enum EventPeriod: String, CaseIterable, Codable, CodingKeyRepresentable {
         case hour, day, week, month, quarter
     }
@@ -65,6 +64,7 @@ public class Flightdeck {
         var events: Set<String> = []     /// Set with event names that have been tracked in current time period
     }
 
+    
     // MARK: - initialize
 
     /**
@@ -126,6 +126,11 @@ public class Flightdeck {
         notificationCenter.addObserver(self, selector: #selector(appMovedToBackground), name: UIApplication.willResignActiveNotification, object: nil)
         notificationCenter.addObserver(self, selector: #selector(appMovedToForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
         notificationCenter.addObserver(self, selector: #selector(appTerminated), name: UIApplication.willTerminateNotification, object: nil)
+        
+        /// Set static metadata if tracked
+        if self.addEventMetadata {
+            self.staticMetaData = StaticMetaData()
+        }
         
         /// Retrieve events that have been tracked before from UserDefaults
         if self.trackUniqueEvents {
@@ -238,31 +243,22 @@ public class Flightdeck {
             eventData.properties = self.stringifyProperties(properties: superProperties)
         }
 
-
+        /// Add metadata to event
         if (self.addEventMetadata) {
 
             /// Set local time and timzone
             eventData.datetimeLocal = currentDateTime.datetimeLocal
             eventData.timezone = currentDateTime.timezone
 
-            /// Set current UI language
-            eventData.language = Bundle.main.preferredLocalizations.first
+            /// Set static metadata
+            eventData.language = self.staticMetaData.language
+            eventData.appVersion = self.staticMetaData.appVersion
+            eventData.appInstallDate = self.staticMetaData.appInstallDate
+            eventData.osName = self.staticMetaData.osName
+            eventData.osVersion = self.staticMetaData.osVersion
+            eventData.deviceModel = self.staticMetaData.deviceModel
+            eventData.deviceManufacturer = self.staticMetaData.deviceManufacturer
 
-            /// Set app version, if available
-            if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-                eventData.appVersion = appVersion
-            }
-            
-            /// Set app install data, if available
-            if let appInstallDate = self.getAppInstallDate() {
-                eventData.appInstallDate = appInstallDate
-            }
-
-            /// Set OS name and major OS version
-            eventData.osName = UIDevice.current.systemName
-            eventData.osVersion = String(describing: ProcessInfo.processInfo.operatingSystemVersion.majorVersion) /// Major version only for privacy reasons
-            eventData.deviceModel = UIDevice.current.model
-            eventData.deviceManufacturer = "Apple"
         }
 
         /// Set previous event name and datetime if any
@@ -348,30 +344,6 @@ public class Flightdeck {
             datetimeLocal: datetimeLocal,
             timezone: TimeZone.current.identifier
         )
-    }
-    
-    
-    /**
-     Get app install date
-     
-     - parameters:  none
-     - returns:     Install date string
-    */
-    private func getAppInstallDate() -> String? {
-        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: documentsDirectory.path)
-                if let creationDate = attributes[.creationDate] as? Date {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "yyyy-MM-dd" // Don't store exact time for privacy reasons
-                    dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
-                    return dateFormatter.string(from: creationDate)
-                }
-            } catch {
-                self.logger.warning("Flightdeck: Unable to determine app install date")
-            }
-        }
-        return nil
     }
 
 
@@ -471,6 +443,52 @@ public class Flightdeck {
         case .quarter:
             return calender.component(.quarter, from: date)
         }
+    }
+    
+    
+    /**
+     Get app install date
+     
+     - parameters:  none
+     - returns:     Install date string
+    */
+    private static func getAppInstallDate() -> String? {
+        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: documentsDirectory.path)
+                if let creationDate = attributes[.creationDate] as? Date {
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd" // Don't store exact time for privacy reasons
+                    dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+                    return dateFormatter.string(from: creationDate)
+                }
+            } catch {
+                self.logger.warning("Flightdeck: Unable to determine app install date")
+            }
+        }
+        return nil
+    }
+    
+    
+    /**
+     Returns device model as represented by the syste. This slightly differs from marketing names of Apple devices.
+     More information: https://github.com/EmilioOjeda/Device
+     
+     
+     - parameter period:    hour, day, week, month, or quarter
+     - returns:             Integer representing the period in the year (or other larger timeframe)
+    */
+    private static func getDeviceModel() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        return String(
+            cString: [UInt8](
+                Data(
+                    bytes: &systemInfo.machine,
+                    count: Int(_SYS_NAMELEN)
+                )
+            )
+        )
     }
 
 
