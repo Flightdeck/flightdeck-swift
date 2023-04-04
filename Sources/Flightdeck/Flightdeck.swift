@@ -252,6 +252,11 @@ public class Flightdeck {
             if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                 eventData.appVersion = appVersion
             }
+            
+            /// Set app install data, if available
+            if let appInstallDate = self.getAppInstallDate() {
+                eventData.appInstallDate = appInstallDate
+            }
 
             /// Set OS name and major OS version
             eventData.osName = UIDevice.current.systemName
@@ -345,6 +350,30 @@ public class Flightdeck {
             timezone: TimeZone.current.identifier
         )
     }
+    
+    
+    /**
+     Get app install date
+     
+     - parameters:  none
+     - returns:     Install date string
+    */
+    private func getAppInstallDate() -> String? {
+        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: documentsDirectory.path)
+                if let creationDate = attributes[.creationDate] as? Date {
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd" // Don't store exact time for privacy reasons
+                    dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+                    return dateFormatter.string(from: creationDate)
+                }
+            } catch {
+                self.logger.warning("Flightdeck: Unable to determine app install date")
+            }
+        }
+        return nil
+    }
 
 
     /**
@@ -419,33 +448,6 @@ public class Flightdeck {
         
         return isFirstOf
     }
-
-    // FIXME: Remove
-//    private func trackFirstOfPeriod(event: String, period: EventPeriod) -> Bool {
-//        let calendarComponent = ["day": Calendar.Component.day, "month": Calendar.Component.month]
-//
-//        guard
-//            let eventSet = self.eventsTrackedBefore[period],
-//            let component = calendarComponent[period.rawValue]
-//        else {
-//            return false
-//        }
-//
-//        /// Check if eventsCollection in memory is from the current time period before checking for the event
-//        if eventSet.date == Calendar.current.component(component, from: Date()) {
-//            if eventSet.events.contains(event) {
-//                return false
-//            } else {
-//                self.eventsTrackedBefore[period]?.events.insert(event)
-//                return true
-//            }
-//
-//        /// If eventsCollection in memory is old, empty the collection and set date to current time period
-//        } else {
-//            self.eventsTrackedBefore[period] = EventSet(date: Calendar.current.component(component, from: Date()))
-//            return true
-//        }
-//    }
 
 
     /**
