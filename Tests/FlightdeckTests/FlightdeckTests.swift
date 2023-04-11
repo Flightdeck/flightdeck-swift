@@ -13,7 +13,8 @@ final class FlightdeckTests: XCTestCase {
         XCTAssertNotNil(Flightdeck.shared.trackEvent("Test", properties: [
             "string": "value1",
             "number": 12,
-            "array": ["string", "array", 1234]]
+            "array": ["string", "array", 1234] as [Any]
+        ]
         ))
     }
     
