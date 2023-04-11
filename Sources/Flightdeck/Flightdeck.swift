@@ -138,7 +138,7 @@ public class Flightdeck {
                 trackedBefore[period] = EventSet(date: Self.getCurrentDatePeriod(period: period))
             }
 
-            /// Check if userDefaults for previous eventsTrackedBefore, and set those if time period matches current
+            /// Check if userDefaults exist for previous eventsTrackedBefore, and set those if time period matches current
             if
                 let data = UserDefaults.standard.data(forKey: "FDEventsTrackedBefore"),
                 let storedEvents: [EventPeriod: EventSet] = try? JSONDecoder().decode([EventPeriod: EventSet].self, from: data)
@@ -194,10 +194,8 @@ public class Flightdeck {
      Tracks an event with properties.
      Properties are optional and can be added only if needed.
      
-     Properties will allow you to segment your events in your Mixpanel reports.
-     Property keys must be String objects and the supported value types need to conform to MixpanelType.
-     MixpanelType can be either String, Int, UInt, Double, Float, Bool, [MixpanelType], [String: MixpanelType], Date, URL, or NSNull.
-     If the event is being timed, the timer will stop and be added as a property.
+     Properties will allow you to segment your events in your reports.
+     Property keys must be Strings and values must conform to String, Int, Double, or Bool.
      
      - parameter event:      event name
      - parameter properties: properties dictionary
@@ -508,7 +506,6 @@ public class Flightdeck {
 
     @objc private func appMovedToForeground() {
         if let movedToBackgroundTime = self.movedToBackgroundTime {
-
             if Date().timeIntervalSince(movedToBackgroundTime) > 60 {
                 self.eventsTrackedThisSession.removeAll()
                 self.previousEvent = nil
