@@ -61,7 +61,12 @@ public class Flightdeck {
         var date: Int                    /// Int that represent current time period (e.g. hour of day, day of year, day of year, month of year)
         var events: Set<String> = []     /// Set with event names that have been tracked in current time period
     }
-
+    
+    /// For storing data in local storage
+    struct EventSetIndices: Codable {
+        var date: Int                    /// Int that represent current time period (e.g. hour of day, day of year, day of year, month of year)
+        var events: Array<Int> = []        /// Set with event names that have been tracked in current time period
+    }
     
     // MARK: - initialize
 
@@ -137,29 +142,25 @@ public class Flightdeck {
             var trackedBefore = EventPeriod.allCases.reduce(into: [EventPeriod: EventSet]()) { trackedBefore, period in
                 trackedBefore[period] = EventSet(date: Self.getCurrentDatePeriod(period: period))
             }
-
-            /// Check if userDefaults exist for previous eventsTrackedBefore, and set those if time period matches current
+            
+            /// Retrieve eventsTrackedBefore from local storage
             if
-                let data = UserDefaults.standard.data(forKey: "FDEventsTrackedBefore"),
-                let storedEvents: [EventPeriod: EventSet] = try? JSONDecoder().decode([EventPeriod: EventSet].self, from: data)
-            {
+                /// Retrieve list with unqiue event names
+                let data = UserDefaults.standard.data(forKey: "FDUniqueEvents"),
+                let storedUniqueEventsArray: [String] = try? JSONDecoder().decode([String].self, from: data) {
+                
+                /// Retrieve events tracked before for every time period and convert EventSetIndices to EventSet
                 trackedBefore.forEach { period, eventSet in
                     if
-                        let storedEventSet = storedEvents[period],
-                        storedEventSet.date == eventSet.date
-                    {
-                            trackedBefore[period] = storedEventSet
-                        
+                        let data = UserDefaults.standard.data(forKey: "FDEventsTrackedBefore.\(period.rawValue)"),
+                        let storedEventSetIndices: EventSetIndices = try? JSONDecoder().decode(EventSetIndices.self, from: data),
+                        storedEventSetIndices.date == eventSet.date {
+                            let eventNames = storedEventSetIndices.events.compactMap { index in
+                                storedUniqueEventsArray.indices.contains(index) ? storedUniqueEventsArray[index] : nil
+                            }
+                            trackedBefore[period] = EventSet(date: storedEventSetIndices.date, events: Set(eventNames))
                     }
                 }
-
-                /// UserDefaults data is cleaned for duplicates across periods. Revert this for use during session
-                /// This makes sure that all events of a shorter time period are copied to the longer time periods
-                for (index, period) in EventPeriod.allCases.enumerated() where index > 1 {
-                    let prevPeriod = EventPeriod.allCases[index - 1]
-                    trackedBefore[period]!.events.formUnion(trackedBefore[prevPeriod]!.events)
-                }
-
             }
             
             self.eventsTrackedBefore = trackedBefore
@@ -518,17 +519,24 @@ public class Flightdeck {
     @objc private func appTerminated() {
         if !self.trackUniqueEvents { return }
 
-        /// Compress eventsTrackedBefore by removing duplicate sessions across time periods
-        var eventsTrackedBefore = self.eventsTrackedBefore
-        for (index, period) in EventPeriod.allCases.enumerated() where index > 1 {
-            let prevPeriod = EventPeriod.allCases[index - 1]
-            eventsTrackedBefore[period]!.events.subtract(eventsTrackedBefore[prevPeriod]!.events)
+        /// Create an array with unique events from all event periods combined
+        let uniqueEvents = eventsTrackedBefore.values.flatMap { $0.events }.reduce(into: Set<String>()) { $0.insert($1) }
+        let uniqueEventsArray = Array(uniqueEvents) /// Turn into array for indices
+        
+        /// Store array with unique events
+        if let encodedUniqueEvents = try? JSONEncoder().encode(uniqueEventsArray) {
+            UserDefaults.standard.set(encodedUniqueEvents, forKey: "FDUniqueEvents")
         }
         
-        /// Store eventsTrackedBefore for use in later sessions
-        if let encodedData = try? JSONEncoder().encode(eventsTrackedBefore) {
-            UserDefaults.standard.set(encodedData, forKey: "FDEventsTrackedBefore")
+        /// Store events tracked before for every time period, using EventSetIndices for storage space optimization
+        eventsTrackedBefore.forEach { (eventPeriod, eventSet) in
+            let eventIndices = eventSet.events.compactMap { uniqueEventsArray.firstIndex(of: $0) }
+            let eventSetWithIndices = EventSetIndices(date: eventSet.date, events: eventIndices)
+            if let encodedData = try? JSONEncoder().encode(eventSetWithIndices) {
+                UserDefaults.standard.set(encodedData, forKey: "FDEventsTrackedBefore.\(eventPeriod.rawValue)")
+            }
         }
+        
     }
 
 }
