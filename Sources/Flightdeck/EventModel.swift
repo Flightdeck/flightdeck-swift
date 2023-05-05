@@ -23,7 +23,6 @@ struct Event: Codable {
         case timezone, language
         case properties
         case appVersion = "app_version"
-        case appInstallDate = "app_install_date"
         case osName = "os_name"
         case osVersion = "os_version"
         case deviceManufacturer = "device_manufacturer"

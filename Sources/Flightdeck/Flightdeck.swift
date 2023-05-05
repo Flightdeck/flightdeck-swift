@@ -45,7 +45,6 @@ public class Flightdeck {
     struct StaticMetaData {
         let language: String? = Bundle.main.preferredLocalizations.first
         let appVersion: String? = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        let appInstallDate: String? = Flightdeck.getAppInstallDate()
         let osName: String = UIDevice.current.systemName
         let deviceModel: String? = Flightdeck.getDeviceModel() /// System representation
         let deviceManufacturer: String = "Apple"
@@ -251,7 +250,6 @@ public class Flightdeck {
             if let staticMetaData = self.staticMetaData {
                 eventData.language = staticMetaData.language
                 eventData.appVersion = staticMetaData.appVersion
-                eventData.appInstallDate = staticMetaData.appInstallDate
                 eventData.osName = staticMetaData.osName
                 eventData.osVersion = staticMetaData.osVersion
                 eventData.deviceModel = staticMetaData.deviceModel
@@ -442,30 +440,6 @@ public class Flightdeck {
         case .quarter:
             return calender.component(.quarter, from: date)
         }
-    }
-    
-    
-    /**
-     Get app install date
-     
-     - parameters:  none
-     - returns:     Install date string
-    */
-    private static func getAppInstallDate() -> String? {
-        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: documentsDirectory.path)
-                if let creationDate = attributes[.creationDate] as? Date {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "yyyy-MM-dd" // Don't store exact time for privacy reasons
-                    dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
-                    return dateFormatter.string(from: creationDate)
-                }
-            } catch {
-                self.logger.warning("Flightdeck: Unable to determine app install date")
-            }
-        }
-        return nil
     }
     
     
