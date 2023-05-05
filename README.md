@@ -37,10 +37,12 @@ Import Flightdeck into AppDelegate.swift, and initialize Flightdeck within appli
 ```swift
 import Flightdeck
 
-func application(_ application: UIApplication,
-                 didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
     ...
-    Flightdeck.initialize(projectId: "FLIGHTDECK_PROJECT_ID", projectToken: "FLIGHTDECK_PROJECT_TOKEN")
+    Flightdeck.initialize(
+        projectId: "FLIGHTDECK_PROJECT_ID", 
+        projectToken: "FLIGHTDECK_PROJECT_TOKEN"
+    )
     ...
 }
 ```
