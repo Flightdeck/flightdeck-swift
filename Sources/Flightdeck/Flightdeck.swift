@@ -329,6 +329,7 @@ public class Flightdeck {
         let dateNow = Date()
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.calendar = Calendar(identifier: .iso8601)
 
         dateFormatter.timeZone = TimeZone.current
         let datetimeLocal = dateFormatter.string(from: dateNow)
