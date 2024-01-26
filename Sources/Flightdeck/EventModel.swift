@@ -10,6 +10,7 @@ import Foundation
 struct Event: Codable {
     let clientType, clientConfig, clientVersion, event, datetimeUTC: String
     var datetimeLocal, timezone, language, properties, appVersion, appInstallDate, osName, osVersion, deviceManufacturer, deviceModel: String?
+    var debug: Bool = false
     var firstOfSession, firstOfHour, firstOfDay, firstOfWeek, firstOfMonth, firstOfQuarter: Bool?
     var previousEvent, previousEventDatetimeUTC: String?
 
@@ -27,6 +28,7 @@ struct Event: Codable {
         case osVersion = "os_version"
         case deviceManufacturer = "device_manufacturer"
         case deviceModel = "device_model"
+        case debug = "debug"
         case firstOfSession = "first_of_session"
         case firstOfHour = "first_of_hour"
         case firstOfDay = "first_of_day"
@@ -35,13 +37,5 @@ struct Event: Codable {
         case firstOfQuarter = "first_of_quarter"
         case previousEvent = "previous_event"
         case previousEventDatetimeUTC = "previous_event_datetime_utc"
-    }
-    
-    init(clientType: String, clientVersion: String, clientConfig: String, event: String, datetimeUTC: String) {
-        self.clientType = clientType
-        self.clientVersion = clientVersion
-        self.clientConfig = clientConfig
-        self.event = event
-        self.datetimeUTC = datetimeUTC
     }
 }
