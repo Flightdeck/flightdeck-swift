@@ -12,9 +12,9 @@ import SwiftUI
 public class Flightdeck {
     public static let shared = Flightdeck()
     private static let logger = Logger()
-    
+
     private let clientType = "iOSlib"
-    private let clientVersion = "1.0.0"
+    private let clientVersion = "1.1.0"
     private let clientConfig: String
     private let eventAPIURL = "https://api.flightdeck.cc/v0/events"
     private let automaticEventsPrefix = "(FD) "
@@ -49,8 +49,15 @@ public class Flightdeck {
         let deviceModel: String? = Flightdeck.getDeviceModel() /// System representation
         let deviceManufacturer: String = "Apple"
         let osVersion: String? = UIDevice.current.systemVersion.split(separator: ".").first.map { String($0) } /// Major version only for privacy reasons
+
+        var debug: Bool {
+            #if DEBUG
+                return true
+            #endif
+            return false
+        }
     }
-    
+
     /// Structure to store events for unique user calculation
     enum EventPeriod: String, CaseIterable, Codable, CodingKeyRepresentable {
         case hour, day, week, month, quarter
@@ -60,26 +67,26 @@ public class Flightdeck {
         var date: Int                    /// Int that represent current time period (e.g. hour of day, day of year, day of year, month of year)
         var events: Set<String> = []     /// Set with event names that have been tracked in current time period
     }
-    
+
     /// For storing data in local storage
     struct EventSetIndices: Codable {
         var date: Int                    /// Int that represent current time period (e.g. hour of day, day of year, day of year, month of year)
         var events: Array<Int> = []        /// Set with event names that have been tracked in current time period
     }
-    
+
     // MARK: - initialize
 
     /**
      Initialize the Flightdeck singleton
-     
+
      Project ID and project token are generated on project creation and can be found in the project settings by team admins and owners.
-     
+
      - parameter projectId:             Project ID
      - parameter projectToken:          Project write API token
      - parameter addEventMetadata:      Enable default metadata to be added to each event
      - parameter trackAutomaticEvents:  Enable tracking automatic events
      - parameter trackUniqueEvents:     Enable tracking daily and monthly unique events (session uniqueness is always tracked)
-     
+
      */
     class public func initialize(
         projectId: String,
@@ -98,8 +105,6 @@ public class Flightdeck {
 
         // Call shared instance to start init()
         _ = Flightdeck.shared
-
-
     }
 
 
@@ -117,13 +122,13 @@ public class Flightdeck {
         self.clientConfig = "\(self.addEventMetadata ? 1 : 0)\(self.trackAutomaticEvents ? 1 : 0)\(self.trackUniqueEvents ? 1 : 0)"
         /**
             sdkConfig
-         
+
             Position 1: 1 = iOS SDK
             Position 2: addEventMetadata true/false (1 or 0)
             Position 3: trackAutomaticEvents true/false  (1 or 0)
             Position 4: trackUniqueEvents true/false  (1 or 0)
          **/
-        
+
         /// Set static metadata if tracked
         if self.addEventMetadata {
             self.staticMetaData = StaticMetaData()
@@ -133,7 +138,7 @@ public class Flightdeck {
         notificationCenter.addObserver(self, selector: #selector(appMovedToBackground), name: UIApplication.willResignActiveNotification, object: nil)
         notificationCenter.addObserver(self, selector: #selector(appMovedToForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
         notificationCenter.addObserver(self, selector: #selector(appTerminated), name: UIApplication.willTerminateNotification, object: nil)
-        
+
         /// Retrieve events that have been tracked before from UserDefaults
         if self.trackUniqueEvents {
 
@@ -141,13 +146,13 @@ public class Flightdeck {
             var trackedBefore = EventPeriod.allCases.reduce(into: [EventPeriod: EventSet]()) { trackedBefore, period in
                 trackedBefore[period] = EventSet(date: Self.getCurrentDatePeriod(period: period))
             }
-            
+
             /// Retrieve eventsTrackedBefore from local storage
             if
                 /// Retrieve list with unqiue event names
                 let data = UserDefaults.standard.data(forKey: "FDUniqueEvents"),
                 let storedUniqueEventsArray: [String] = try? JSONDecoder().decode([String].self, from: data) {
-                
+
                 /// Retrieve events tracked before for every time period and convert EventSetIndices to EventSet
                 trackedBefore.forEach { period, eventSet in
                     if
@@ -161,7 +166,7 @@ public class Flightdeck {
                     }
                 }
             }
-            
+
             self.eventsTrackedBefore = trackedBefore
         }
 
@@ -176,9 +181,9 @@ public class Flightdeck {
      Sets properties that are included with each event during the duration of the current initialization.
      Super properties are reset everytime the app is terminated.
      Make sure to set necessary super properties everytime after Flightdeck.initialize() is called.
-     
+
      Super properties can be overwritten by similarly named properties that are provided with trackEvent()
-     
+
      - parameter properties: properties dictionary
      */
 
@@ -193,10 +198,10 @@ public class Flightdeck {
     /**
      Tracks an event with properties.
      Properties are optional and can be added only if needed.
-     
+
      Properties will allow you to segment your events in your reports.
      Property keys must be Strings and values must conform to String, Int, Double, or Bool.
-     
+
      - parameter event:      event name
      - parameter properties: properties dictionary
      */
@@ -225,8 +230,8 @@ public class Flightdeck {
         /// Initialize a new Event object with event string and current UTC datetime
         var eventData = Event(
             clientType: self.clientType,
-            clientVersion: self.clientVersion,
             clientConfig: self.clientConfig,
+            clientVersion: self.clientVersion,
             event: event,
             datetimeUTC: currentDateTime.datetimeUTC
         )
@@ -254,6 +259,7 @@ public class Flightdeck {
                 eventData.osVersion = staticMetaData.osVersion
                 eventData.deviceModel = staticMetaData.deviceModel
                 eventData.deviceManufacturer = staticMetaData.deviceManufacturer
+                eventData.debug = staticMetaData.debug
             }
 
         }
@@ -300,7 +306,7 @@ public class Flightdeck {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpMethod = "POST"
         request.httpBody = eventDataJSON
-        
+
         URLSession.shared.dataTask(with: request) { data, response, error in
             if (error != nil) {
                 Self.logger.error("Flightdeck: Failed to send event to server. Error: \(error?.localizedDescription ?? "No error data")")
@@ -314,7 +320,7 @@ public class Flightdeck {
 
     /**
      Get the current UTC datetime, local datetime, and timezone code
-     
+
      - parameters: none
      - returns: CurrentDateTime object
     */
@@ -329,7 +335,7 @@ public class Flightdeck {
         let dateNow = Date()
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.calendar = Calendar(identifier: .iso8601)
+        dateFormatter.calendar = Calendar(identifier: .iso8601)
 
         dateFormatter.timeZone = TimeZone.current
         let datetimeLocal = dateFormatter.string(from: dateNow)
@@ -347,7 +353,7 @@ public class Flightdeck {
 
     /**
      Turn optional properties array into strinified JSON
-     
+
      - parameter properties: properties array
      - returns: Stringyfied JSON of properties array
     */
@@ -360,14 +366,14 @@ public class Flightdeck {
             Self.logger.error("Flightdeck: Failed to convert event properties to JSON string. Check your properties dictionary.")
             return ""
         }
-        
+
         return jsonPropertiesString
     }
 
 
     /**
      Check if a specified event has been tracked before and set event as tracked if it was the first occurance.
-     
+
      - parameter event: Event name
      - returns:         true if event is first of session, false if event has been tracked before
     */
@@ -382,23 +388,23 @@ public class Flightdeck {
 
     /**
      Check if a specified event has been tracked before during the current period and set event as tracked if it was the first occurance.
-     
+
      - parameter event:     Event name
      - parameter period:    Period string ("day", "month")
      - returns:             Dictionary of EventPeriod keys with boolean reflecting
                             whether an event has been tracked before during the period
     */
     private func trackFirstOfPeriod(event: String) -> [EventPeriod: Bool] {
-        
+
         /// Set return variable with default values False
         var isFirstOf = EventPeriod.allCases.reduce(into: [EventPeriod: Bool]()) { isFirstOf, period in
             isFirstOf[period] = false
         }
-        
+
         /// Loop through eventsTrackedBefore to check event for each time period
         for (period, eventSet) in self.eventsTrackedBefore {
             let currentDatePeriod = Self.getCurrentDatePeriod(period: period)
-            
+
             /// Check if eventsCollection in memory is from the current time period before checking for the event
             if eventSet.date == currentDatePeriod {
                 if !eventSet.events.contains(event) {
@@ -407,21 +413,21 @@ public class Flightdeck {
                     self.eventsTrackedBefore[period] = updatedEventSet
                     isFirstOf[period] = true
                 }
-                
+
             /// If eventsCollection in memory is old, empty the collection and set date to current time period
             } else {
                 self.eventsTrackedBefore[period] = EventSet(date: currentDatePeriod)
                 isFirstOf[period] =  true
             }
         }
-        
+
         return isFirstOf
     }
 
 
     /**
      Get the current ordinal number representing a date period in this year.
-     
+
      - parameter period:    hour, day, week, month, or quarter
      - returns:             Integer representing the period in the year (or other larger timeframe)
     */
@@ -442,13 +448,13 @@ public class Flightdeck {
             return calender.component(.quarter, from: date)
         }
     }
-    
-    
+
+
     /**
      Returns device model as represented by the syste. This slightly differs from marketing names of Apple devices.
      More information: https://github.com/EmilioOjeda/Device
-     
-     
+
+
      - parameter period:    hour, day, week, month, or quarter
      - returns:             Integer representing the period in the year (or other larger timeframe)
     */
@@ -468,12 +474,12 @@ public class Flightdeck {
 
     /**
      Perform actions on app lifecylce state changes
-     
+
      Session start: Occurs when Flightdeck singleton is initialized or app moves to foreground
      Session end: Occurs when app is terminated or moves to forground after 60 seconds of being inactive
-     
+
      Previous event: Event name and datetime of the previous event are removed on session end
-     
+
      Unique events: Store events fired today and this month in UserDefaults when app terminates
     */
     @objc private func appMovedToBackground() {
@@ -497,12 +503,12 @@ public class Flightdeck {
         /// Create an array with unique events from all event periods combined
         let uniqueEvents = eventsTrackedBefore.values.flatMap { $0.events }.reduce(into: Set<String>()) { $0.insert($1) }
         let uniqueEventsArray = Array(uniqueEvents) /// Turn into array for indices
-        
+
         /// Store array with unique events
         if let encodedUniqueEvents = try? JSONEncoder().encode(uniqueEventsArray) {
             UserDefaults.standard.set(encodedUniqueEvents, forKey: "FDUniqueEvents")
         }
-        
+
         /// Store events tracked before for every time period, using EventSetIndices for storage space optimization
         eventsTrackedBefore.forEach { (eventPeriod, eventSet) in
             let eventIndices = eventSet.events.compactMap { uniqueEventsArray.firstIndex(of: $0) }
@@ -511,7 +517,7 @@ public class Flightdeck {
                 UserDefaults.standard.set(encodedData, forKey: "FDEventsTrackedBefore.\(eventPeriod.rawValue)")
             }
         }
-        
+
     }
 
 }
